@@ -9,33 +9,13 @@ DIR1 = os.getcwd()+'/train/forged/'
 DIR2 = os.getcwd()+'/train/genuine/'
 
 #Test DIR
-DIR3=os.getcwd()+'/test/forged/'
-DIR4=os.getcwd()+'/test/genuine/'
+DIR3=os.getcwd()+'/TestImage/forged/'
+#DIR4=os.getcwd()+'/TestImage/genuine/'
 
 #Validate DIR
 DIR5=os.getcwd()+'/validate/forged/'
 DIR6=os.getcwd()+'/validate/genuine/'
 
-def get_size_statistics():
-    heights = []
-    widths = []
-    img_count = 0
-    for img in os.listdir(DIR1):
-        path = os.path.join(DIR1, img)
-        data = np.array(Image.open(path))
-        heights.append(data.shape[0])
-        widths.append(data.shape[1])
-        img_count += 1
-    for img in os.listdir(DIR2):
-        path = os.path.join(DIR2, img)
-        data = np.array(Image.open(path))
-        heights.append(data.shape[0])
-        widths.append(data.shape[1])
-        img_count += 1    
-    avg_height = sum(heights) / len(heights)
-    avg_width = sum(widths) / len(widths)
-
-get_size_statistics()
 
 def label_img(name):
     for name in os.listdir(DIR1):
@@ -100,7 +80,7 @@ def load_test_data():
         img = img.convert('L')
         img = img.resize((500, 500), Image.ANTIALIAS)
         test_data.append([np.array(img), label])
-
+    """
     for img in os.listdir(DIR4):
         label = np.array([0,1])
         path = os.path.join(DIR4, img)
@@ -108,7 +88,7 @@ def load_test_data():
         img = img.convert('L')
         img = img.resize((500, 500), Image.ANTIALIAS)
         test_data.append([np.array(img), label])
-
+	"""
     return test_data    
 
 train_data = load_training_data()
@@ -127,7 +107,6 @@ validateLabels = np.array([i[1] for i in valid_data])
 testImages = np.array([i[0][0] for i in test_data]).reshape(-1, 500)
 testLabels = np.array([i[1] for i in test_data])
 
-
 from keras.preprocessing import sequence
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Embedding, LSTM, Bidirectional
@@ -137,13 +116,44 @@ model.add(Embedding(500, 100, input_shape=(500,)))
 model.add(Bidirectional(LSTM(64, dropout=0.2, recurrent_dropout=0.01)))
 model.add(Dense(100, activation='relu'))
 model.add(Dropout(0.02))
+
 model.add(Dense(2, activation='sigmoid'))
 
 model.compile(loss='binary_crossentropy', optimizer='adam', metrics = ['accuracy'])
 
-model.fit(trainImages,trainLabels, validation_data = (validateImages, validateLabels) , batch_size=10, epochs=20, verbose=1)
+history = model.fit(trainImages,trainLabels, validation_data = (validateImages, validateLabels) , batch_size=100, epochs=20, verbose=1)
 
 model.summary()
 
 loss, acc = model.evaluate(testImages, testLabels, verbose = 0)
-print(acc * 100)
+a = acc * 100
+print("\nAccuracy = ",a)
+
+img=Image.open('04402044.png')
+img = img.convert('L')
+img = img.resize((500, 500), Image.ANTIALIAS)
+predict_data=[]
+predict_data.append([np.array(img)])
+predictImages = np.array([i for i in predict_data]).reshape(-1, 500)
+predictions = model.predict(predictImages, batch_size=1)
+
+if predictions[0][0]>predictions[0][1]:
+	print('INPUT SIGNATURE IS GENUINE')
+else:
+	print('INPUT SIGNATURE IS FORGE')	
+
+plt.plot(history.history['accuracy'])
+plt.plot(history.history['val_accuracy'])
+plt.title('Model accuracy')
+plt.ylabel('Accuracy')
+plt.xlabel('Epoch')
+plt.legend(['Train', 'Test'], loc='upper left')
+plt.show()
+
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('Model loss')
+plt.ylabel('Loss')
+plt.xlabel('Epoch')
+plt.legend(['Train', 'Test'], loc='upper left')
+plt.show()
